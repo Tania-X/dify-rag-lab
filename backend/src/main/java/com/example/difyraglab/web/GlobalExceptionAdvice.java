@@ -16,6 +16,16 @@ public class GlobalExceptionAdvice {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionAdvice.class);
 
+    /** 配置/参数类错误（未配置 Key、非法参数等）→ 400，属客户端问题。 */
+    @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
+    public ResponseEntity<Map<String, String>> handleBadRequest(Exception e) {
+        Map<String, String> body = new LinkedHashMap<>();
+        body.put("error", e.getClass().getSimpleName());
+        body.put("message", e.getMessage() == null ? String.valueOf(e) : e.getMessage());
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    /** 其他异常 → 500。 */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handle(Exception e) {
         log.error("请求处理失败", e);
