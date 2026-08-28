@@ -22,11 +22,27 @@ docker build -t dify-rag-lab:0.0.1 .   # 或直接 java -jar target/dify-rag-lab
 | `EMBEDDING_BASE_URL` | 空 | OpenAI 兼容 Embedding 端点（对照实验必须与 Dify 一致） |
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | Embedding 模型名 |
 | `WEAVIATE_URL` | `http://localhost:8090` | Weaviate 宿主地址（脚本 01 发布的代理） |
-| `WEAVIATE_API_KEY` | Dify 官方默认 | Weaviate API Key |
+| `WEAVIATE_API_KEY` | 空（必填才可用直查） | Weaviate API Key，见下方「密钥从哪来」 |
 
 > **所有环境变量都可缺省启动**：`DIFY_DATASET_ID` / `DIFY_DATASET_API_KEY` 缺省时，
 > 问答/检索接口会返回明确的配置报错（不影响服务启动，适合先冒烟验证）；
 > `EMBEDDING_BASE_URL` 缺省时，仅"对照实验 / near_vector / hybrid 直查"不可用。
+
+## 密钥从哪来（Weaviate / Dify）
+
+Weaviate 的 API Key **属于 Dify 部署自身的配置**（其 `.env` 中的
+`WEAVIATE_AUTHENTICATION_APIKEY_ALLOWED_KEYS`），Dify 不提供任何 API 对外暴露该凭据。
+网关的 `WEAVIATE_API_KEY` 按部署形态从以下途径注入：
+
+| 场景 | 途径 | 说明 |
+|---|---|---|
+| 与 Dify **同一 compose 项目 / 同一 .env** | 编排层共享变量 | 最推荐：Dify 与网关共用一份 `.env`，实例启动时自动就位，无需手工复制 |
+| 与 Dify **同机部署**（docker 可达） | 引导脚本读取 | `scripts/11-get-weaviate-key.ps1` / `.sh`：`docker exec` 从 Dify api 容器 env 读取并注入当前会话（仅引导用，非运行时依赖） |
+| 生产/跨机 | 密钥管理注入 | 密钥进 Vault / 云 KMS / 部署平台 secret，与 Dify 部署引用同一密钥源 |
+
+> 注意：`WEAVIATE_API_KEY` 只服务于**向量库直查与对照实验**；纯 RAG 使用
+> （检索/问答/入库）只需要 `DIFY_DATASET_API_KEY`。跨机部署时若 Weaviate 不可达，
+> 直查类功能自动不可用，核心功能不受影响——这正是网关与 Dify 解耦的价值。
 
 ## 接口一览
 
