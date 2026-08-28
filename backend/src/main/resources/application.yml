@@ -1,0 +1,28 @@
+server:
+  port: 8081
+
+dify:
+  # Dify 对外入口（你的 nginx 暴露 8080）
+  base-url: ${DIFY_BASE_URL:http://localhost:8080}
+  # 数据集 API Key（知识库 → 设置 → API 访问 生成）
+  dataset-api-key: ${DIFY_DATASET_API_KEY:}
+  # 聊天助手 App API Key（阶段 5 使用）
+  app-api-key: ${DIFY_APP_API_KEY:}
+  # 演练知识库 ID
+  dataset-id: ${DIFY_DATASET_ID:}
+  embedding:
+    # OpenAI 兼容 Embedding 端点（与 Dify 里配置的模型一致，才能对照）
+    # 例如你的 OPENAI_API_BASE，或 any 兼容网关
+    base-url: ${EMBEDDING_BASE_URL:}
+    api-key: ${EMBEDDING_API_KEY:}
+    model: ${EMBEDDING_MODEL:text-embedding-3-small}
+
+weaviate:
+  # 宿主访问地址：脚本 01 发布的代理 127.0.0.1:8090；
+  # 若 Java 服务跑在 docker_default 网络内则用 http://weaviate:8080
+  base-url: ${WEAVIATE_URL:http://localhost:8090}
+  api-key: ${WEAVIATE_API_KEY:WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih}
+
+logging:
+  level:
+    com.example.difyraglab: INFO
