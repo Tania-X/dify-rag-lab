@@ -44,7 +44,8 @@ export default function VdbPanel() {
 
   const loadObjects = async (className: string) => {
     try {
-      setObjectsByClass((prev) => ({ ...prev, [className]: await listObjects(className, 5) }));
+      const objects = await listObjects(className, 5);
+      setObjectsByClass((prev) => ({ ...prev, [className]: objects }));
     } catch (e) {
       message.error(errorText(e));
     }
