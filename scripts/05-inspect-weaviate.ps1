@@ -20,7 +20,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 if (-not $WeaviateUrl) { $WeaviateUrl = 'http://localhost:8090' }
-if (-not $ApiKey) { $ApiKey = 'WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih' }
+if (-not $ApiKey) { throw '缺少 -ApiKey（Weaviate API Key，可设置环境变量 WEAVIATE_API_KEY）' }
 $headers = @{ Authorization = "Bearer $ApiKey" }
 
 # 1) schema

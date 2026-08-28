@@ -8,7 +8,7 @@
 |---|---|
 | Dify 镜像 | `langgenius/dify-api:1.17.0`（api / worker / web 三容器） |
 | 向量库 | Weaviate `1.27.0`，容器 `docker-weaviate-1`，网络内地址 `http://weaviate:8080`（gRPC `50051`） |
-| 向量库认证 | `AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true` + API Key `WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih`（Dify 官方 compose 默认值，仅内网可达） |
+| 向量库认证 | `AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true` + API Key（Dify 官方 compose 默认值，见部署 `.env`，仅内网可达） |
 | 向量库端口 | 未映射到宿主机 → 宿主直查需走临时代理（演练 01 号脚本） |
 | 关键环境变量 | `VECTOR_STORE=weaviate`、`WEAVIATE_ENDPOINT`、`WEAVIATE_GRPC_ENDPOINT`、`WEAVIATE_API_KEY`、`WEAVIATE_BATCH_SIZE`(默认100)、`WEAVIATE_TOKENIZATION`(默认word) |
 | 元数据库 | PostgreSQL 15（`docker-db_postgres-1`，Dify 元数据） |

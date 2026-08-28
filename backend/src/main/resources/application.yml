@@ -21,7 +21,8 @@ weaviate:
   # 宿主访问地址：脚本 01 发布的代理 127.0.0.1:8090；
   # 若 Java 服务跑在 docker_default 网络内则用 http://weaviate:8080
   base-url: ${WEAVIATE_URL:http://localhost:8090}
-  api-key: ${WEAVIATE_API_KEY:WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih}
+  # API Key 从环境变量注入，禁止硬编码默认值
+  api-key: ${WEAVIATE_API_KEY:}
 
 logging:
   level:
