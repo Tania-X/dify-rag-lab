@@ -6,6 +6,7 @@ import com.example.difyraglab.dify.dto.DifyRequests.DocumentUploadResult;
 import com.example.difyraglab.dify.dto.DifyRequests.RetrieveHit;
 import com.example.difyraglab.rag.RagService;
 import com.example.difyraglab.rag.RagService.CompareResult;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -47,11 +48,11 @@ public class RagController {
 
     public record RetrieveRequest(
             @NotBlank @Size(max = 250) String query,
-            String searchMethod,
-            Integer topK,
-            Double scoreThreshold,
-            String datasetId,
-            String apiKey
+            @JsonAlias("search_method") String searchMethod,
+            @JsonAlias("top_k") Integer topK,
+            @JsonAlias("score_threshold") Double scoreThreshold,
+            @JsonAlias("dataset_id") String datasetId,
+            @JsonAlias("api_key") String apiKey
     ) {
     }
 
@@ -70,8 +71,8 @@ public class RagController {
 
     public record ChatRequest(
             @NotBlank String query,
-            String appKey,
-            String conversationId
+            @JsonAlias("app_key") String appKey,
+            @JsonAlias("conversation_id") String conversationId
     ) {
     }
 

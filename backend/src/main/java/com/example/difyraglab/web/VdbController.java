@@ -4,6 +4,7 @@ import com.example.difyraglab.rag.RagService;
 import com.example.difyraglab.rag.RagService.SelfHit;
 import com.example.difyraglab.weaviate.WeaviateClient;
 import com.example.difyraglab.weaviate.WeaviateClient.WeaviateObject;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -66,8 +67,8 @@ public class VdbController {
     public record SearchRequest(
             @NotBlank String query,
             String method,        // near_vector | bm25 | hybrid（默认 hybrid）
-            Integer topK,
-            Double embeddingWeight
+            @JsonAlias("top_k") Integer topK,
+            @JsonAlias("embedding_weight") Double embeddingWeight
     ) {
     }
 

@@ -162,6 +162,11 @@ public class DifyApiClient {
      */
     public List<RetrieveHit> retrieve(String datasetId, String query, String searchMethod,
                                       int topK, Double scoreThreshold, String apiKey) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalArgumentException(
+                    "未配置数据集 API Key（环境变量 DIFY_DATASET_API_KEY，或请求体 api_key）。"
+                            + "请在 Dify 知识库 → 设置 → API 访问 生成。");
+        }
         Map<String, Object> retrievalModel = new LinkedHashMap<>();
         retrievalModel.put("search_method", searchMethod);
         retrievalModel.put("reranking_enable", false); // 1.17 必填字段
@@ -212,6 +217,11 @@ public class DifyApiClient {
      * @param conversationId 会话 ID（续聊时传，新会话传 null）
      */
     public JsonNode chat(String query, String appKey, String conversationId) {
+        if (appKey == null || appKey.isBlank()) {
+            throw new IllegalArgumentException(
+                    "未配置 App API Key（环境变量 DIFY_APP_API_KEY，或请求体 app_key）。"
+                            + "请在 Dify 应用 → API 访问 生成。");
+        }
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("query", query);
         body.put("response_mode", "blocking");
