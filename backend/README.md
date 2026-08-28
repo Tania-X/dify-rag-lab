@@ -24,6 +24,10 @@ docker build -t dify-rag-lab:0.0.1 .   # 或直接 java -jar target/dify-rag-lab
 | `WEAVIATE_URL` | `http://localhost:8090` | Weaviate 宿主地址（脚本 01 发布的代理） |
 | `WEAVIATE_API_KEY` | Dify 官方默认 | Weaviate API Key |
 
+> **所有环境变量都可缺省启动**：`DIFY_DATASET_ID` / `DIFY_DATASET_API_KEY` 缺省时，
+> 问答/检索接口会返回明确的配置报错（不影响服务启动，适合先冒烟验证）；
+> `EMBEDDING_BASE_URL` 缺省时，仅"对照实验 / near_vector / hybrid 直查"不可用。
+
 ## 接口一览
 
 | 方法 | 路径 | 说明 |
