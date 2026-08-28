@@ -21,7 +21,7 @@ param(
 $ErrorActionPreference = 'Stop'
 if (-not $WeaviateUrl) { $WeaviateUrl = 'http://localhost:8090' }
 if (-not $ApiKey) { $ApiKey = 'WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih' }
-$headers = @{ 'X-API-Key' = $ApiKey }
+$headers = @{ Authorization = "Bearer $ApiKey" }
 
 # 1) schema
 $schema = Invoke-RestMethod -Uri "$WeaviateUrl/v1/schema" -Headers $headers -TimeoutSec 10

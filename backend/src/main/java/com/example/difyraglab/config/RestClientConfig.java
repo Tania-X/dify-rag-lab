@@ -31,10 +31,11 @@ public class RestClientConfig {
 
     @Bean
     public RestClient weaviateRestClient(WeaviateProperties props) {
-        // Weaviate API Key 支持 X-API-Key 与 Authorization: Bearer 两种方式
+        // 实测：这套 Weaviate 1.27 配置下只有 Authorization: Bearer <api-key> 生效，
+        // X-API-Key 头会被当作匿名（403）。与 Dify 官方默认配置一致。
         return RestClient.builder()
                 .baseUrl(props.baseUrl())
-                .defaultHeader("X-API-Key", props.apiKey())
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + props.apiKey())
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }

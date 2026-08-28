@@ -1,6 +1,6 @@
-# syntax=docker/dockerfile:1
 # 注意：基础镜像使用 DaoCloud 加速源（与你们 Dify 部署同一镜像源）。
 # 若网络能直连 Docker Hub，去掉 docker.m.daocloud.io/library/ 前缀即可。
+# 不要加 # syntax= 指令：它会让 BuildKit 先去 Docker Hub 拉前端镜像（本网络不通）。
 
 # 构建阶段
 FROM docker.m.daocloud.io/library/maven:3.9-eclipse-temurin-17 AS build

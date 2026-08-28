@@ -34,7 +34,7 @@ if ($DeleteDataset) {
     } catch {
         Write-Warning "删除知识库失败：$($_.Exception.Message)"
         Write-Host "可在 UI 中手动删除，或在控制台直接删除 Weaviate collection："
-        Write-Host "  Invoke-RestMethod -Method Delete -Uri '<weaviate>/v1/schema/Vector_index_<dataset_id>_Node' -Headers @{'X-API-Key'='<key>'}"
+        Write-Host "  Invoke-RestMethod -Method Delete -Uri '<weaviate>/v1/schema/Vector_index_<dataset_id>_Node' -Headers @{Authorization='Bearer <key>'}"
     }
 }
 
