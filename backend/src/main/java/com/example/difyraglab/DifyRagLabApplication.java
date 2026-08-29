@@ -1,6 +1,7 @@
 package com.example.difyraglab;
 
 import com.example.difyraglab.config.DifyProperties;
+import com.example.difyraglab.config.RewriteProperties;
 import com.example.difyraglab.config.WeaviateProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -18,7 +19,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
  * </ol>
  */
 @SpringBootApplication
-@EnableConfigurationProperties({DifyProperties.class, WeaviateProperties.class})
+@EnableConfigurationProperties({DifyProperties.class, WeaviateProperties.class, RewriteProperties.class})
 public class DifyRagLabApplication {
 
     public static void main(String[] args) {

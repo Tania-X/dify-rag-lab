@@ -223,6 +223,8 @@ public class DifyApiClient {
                             + "请在 Dify 应用 → API 访问 生成。");
         }
         Map<String, Object> body = new LinkedHashMap<>();
+        // advanced-chat（Chatflow）应用要求显式传入 inputs；普通聊天助手会忽略该字段
+        body.put("inputs", new LinkedHashMap<String, Object>());
         body.put("query", query);
         body.put("response_mode", "blocking");
         body.put("user", "dify-rag-lab");

@@ -20,27 +20,49 @@ param(
     [string]$DatasetId = $env:DIFY_DATASET_ID,
     [string]$ApiKey = $env:DIFY_DATASET_API_KEY,
     [string]$BaseUrl = $env:DIFY_BASE_URL,
-    [int]$TopK = 5
+    [int]$TopK = 5,
+    [string]$RerankEnable = $env:RERANK_ENABLE,
+    [string]$RerankProvider = $env:RERANK_PROVIDER,
+    [string]$RerankModel = $env:RERANK_MODEL
 )
 $ErrorActionPreference = 'Stop'
 if (-not $BaseUrl) { $BaseUrl = 'http://localhost:8080' }
 if (-not $DatasetId) { throw '缺少 -DatasetId' }
 if (-not $ApiKey) { throw '缺少 -ApiKey' }
 if (-not (Test-Path $CsvPath)) { throw "评测集不存在: $CsvPath" }
+if (-not $RerankEnable) { $RerankEnable = 'true' }
+if (-not $RerankProvider) { $RerankProvider = 'langgenius/siliconflow/siliconflow' }
+if (-not $RerankModel) { $RerankModel = 'BAAI/bge-reranker-v2-m3' }
 
 $rows = Import-Csv $CsvPath
 Write-Host "评测集共 $($rows.Count) 题，检索方式 hybrid_search top_k=$TopK`n"
 
 $hit1 = 0; $hit5 = 0
 $details = foreach ($r in $rows) {
-    $body = @{
-        query           = $r.question
-        retrieval_model = @{
+    if ($RerankEnable -eq 'true') {
+        $retrievalModel = @{
+            search_method           = 'hybrid_search'
+            reranking_enable        = $true
+            reranking_model         = @{
+                reranking_provider_name = $RerankProvider
+                reranking_model_name    = $RerankModel
+            }
+            reranking_mode          = 'reranking_model'
+            top_k                   = $TopK
+            score_threshold_enabled = $false
+        }
+    }
+    else {
+        $retrievalModel = @{
             search_method           = 'hybrid_search'
             reranking_enable        = $false
             top_k                   = $TopK
             score_threshold_enabled = $false
         }
+    }
+    $body = @{
+        query           = $r.question
+        retrieval_model = $retrievalModel
     } | ConvertTo-Json -Depth 6
 
     $resp = Invoke-RestMethod -Method Post `

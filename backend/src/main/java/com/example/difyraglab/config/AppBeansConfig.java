@@ -3,6 +3,9 @@ package com.example.difyraglab.config;
 import com.example.difyraglab.dify.DifyApiClient;
 import com.example.difyraglab.embedding.EmbeddingClient;
 import com.example.difyraglab.rag.RagService;
+import com.example.difyraglab.rewrite.InMemoryQueryRewriteCache;
+import com.example.difyraglab.rewrite.QueryRewriteCache;
+import com.example.difyraglab.rewrite.QueryRewriteService;
 import com.example.difyraglab.weaviate.WeaviateClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
@@ -27,6 +30,17 @@ public class AppBeansConfig {
     @Bean
     public EmbeddingClient embeddingClient(DifyProperties props, ObjectMapper objectMapper) {
         return new EmbeddingClient(props, objectMapper);
+    }
+
+    @Bean
+    public QueryRewriteCache queryRewriteCache() {
+        return new InMemoryQueryRewriteCache();
+    }
+
+    @Bean
+    public QueryRewriteService queryRewriteService(RewriteProperties props, RestClient rewriteRestClient,
+                                                   ObjectMapper objectMapper, QueryRewriteCache queryRewriteCache) {
+        return new QueryRewriteService(props, rewriteRestClient, objectMapper, queryRewriteCache);
     }
 
     @Bean
