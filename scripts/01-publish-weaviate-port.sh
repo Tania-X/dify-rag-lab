@@ -15,7 +15,7 @@ else
   echo "创建代理容器 ${PROXY_NAME} (socat) ..."
   docker run -d --name "${PROXY_NAME}" --restart unless-stopped \
     --network "${NETWORK}" \
-    -p "127.0.0.1:${HOST_PORT}:8080" \
+    -p "127.0.0.1:${HOST_PORT}:${HOST_PORT}" \
     alpine/socat "TCP-LISTEN:${HOST_PORT},fork,reuseaddr" "TCP:weaviate:8080" >/dev/null
 fi
 
