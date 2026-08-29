@@ -11,6 +11,10 @@ set -euo pipefail
 : "${DIFY_DATASET_ID:=}"
 : "${DIFY_DATASET_API_KEY:=}"
 : "${TOP_K:=5}"
+# Rerank 默认开启；可用 RERANK_ENABLE=false 关闭，或覆盖 RERANK_PROVIDER / RERANK_MODEL
+: "${RERANK_ENABLE:=true}"
+: "${RERANK_PROVIDER:=langgenius/siliconflow/siliconflow}"
+: "${RERANK_MODEL:=BAAI/bge-reranker-v2-m3}"
 
 CSV_PATH="${1:-sample-data/评测集-questions.csv}"
 DATASET_ID="${2:-${DIFY_DATASET_ID}}"
@@ -28,8 +32,16 @@ while IFS=',' read -r id question keyword note; do
   [ "${id}" = "id" ] && continue
   total=$((total + 1))
 
-  body=$(jq -nc --arg q "${question}" --argjson k "${TOP_K}" \
-    '{query:$q, retrieval_model:{search_method:"hybrid_search", reranking_enable:false, top_k:$k, score_threshold_enabled:false}}')
+  if [ "${RERANK_ENABLE}" = "true" ]; then
+    body=$(jq -nc --arg q "${question}" --argjson k "${TOP_K}" \
+      --arg p "${RERANK_PROVIDER}" --arg m "${RERANK_MODEL}" \
+      '{query:$q, retrieval_model:{search_method:"hybrid_search", reranking_enable:true,
+        reranking_model:{reranking_provider_name:$p, reranking_model_name:$m},
+        reranking_mode:"reranking_model", top_k:$k, score_threshold_enabled:false}}')
+  else
+    body=$(jq -nc --arg q "${question}" --argjson k "${TOP_K}" \
+      '{query:$q, retrieval_model:{search_method:"hybrid_search", reranking_enable:false, top_k:$k, score_threshold_enabled:false}}')
+  fi
   resp=$(curl -fsS -X POST "${DIFY_BASE_URL}/v1/datasets/${DATASET_ID}/retrieve" \
     -H "Authorization: Bearer ${API_KEY}" \
     -H 'Content-Type: application/json' \

@@ -6,6 +6,7 @@ import com.example.difyraglab.dify.dto.DifyRequests.DocumentUploadResult;
 import com.example.difyraglab.dify.dto.DifyRequests.RetrieveHit;
 import com.example.difyraglab.rag.RagService;
 import com.example.difyraglab.rag.RagService.CompareResult;
+import com.example.difyraglab.rewrite.QueryRewriteService;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.Valid;
@@ -35,11 +36,14 @@ public class RagController {
     private final RagService ragService;
     private final DifyApiClient difyApiClient;
     private final DifyProperties props;
+    private final QueryRewriteService queryRewriteService;
 
-    public RagController(RagService ragService, DifyApiClient difyApiClient, DifyProperties props) {
+    public RagController(RagService ragService, DifyApiClient difyApiClient, DifyProperties props,
+                         QueryRewriteService queryRewriteService) {
         this.ragService = ragService;
         this.difyApiClient = difyApiClient;
         this.props = props;
+        this.queryRewriteService = queryRewriteService;
     }
 
     // ------------------------------------------------------------------
@@ -62,7 +66,8 @@ public class RagController {
         int topK = req.topK() == null ? 5 : req.topK();
         String datasetId = req.datasetId() == null ? props.datasetId() : req.datasetId();
         String apiKey = req.apiKey() == null ? props.datasetApiKey() : req.apiKey();
-        return ragService.retrieve(datasetId, req.query(), method, topK, req.scoreThreshold(), apiKey);
+        String finalQuery = queryRewriteService.rewrite(req.query());
+        return ragService.retrieve(datasetId, finalQuery, method, topK, req.scoreThreshold(), apiKey);
     }
 
     // ------------------------------------------------------------------
@@ -79,7 +84,8 @@ public class RagController {
     @PostMapping("/chat")
     public JsonNode chat(@Valid @RequestBody ChatRequest req) {
         String appKey = req.appKey() == null ? props.appApiKey() : req.appKey();
-        return ragService.chat(req.query(), appKey, req.conversationId());
+        String finalQuery = queryRewriteService.rewrite(req.query());
+        return ragService.chat(finalQuery, appKey, req.conversationId());
     }
 
     // ------------------------------------------------------------------
@@ -141,6 +147,7 @@ public class RagController {
         if (dsId == null || dsId.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.ok(ragService.compare(dsId, query, topK));
+        String finalQuery = queryRewriteService.rewrite(query);
+        return ResponseEntity.ok(ragService.compare(dsId, finalQuery, topK));
     }
 }

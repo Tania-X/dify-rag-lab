@@ -39,4 +39,13 @@ public class RestClientConfig {
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }
+
+    @Bean
+    public RestClient rewriteRestClient(RewriteProperties props) {
+        return RestClient.builder()
+                .baseUrl(props.baseUrl())
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + props.apiKey())
+                .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                .build();
+    }
 }
