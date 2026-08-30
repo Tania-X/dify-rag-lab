@@ -81,7 +81,15 @@ public class RagService {
     /** Dify 检索（透传）。 */
     public List<RetrieveHit> retrieve(String datasetId, String query, String searchMethod,
                                       int topK, Double scoreThreshold, String apiKey) {
-        return difyApiClient.retrieve(datasetId, query, searchMethod, topK, scoreThreshold, apiKey);
+        return retrieve(datasetId, query, searchMethod, topK, scoreThreshold, apiKey, null);
+    }
+
+    /** Dify 检索（透传），支持元数据过滤条件。 */
+    public List<RetrieveHit> retrieve(String datasetId, String query, String searchMethod,
+                                      int topK, Double scoreThreshold, String apiKey,
+                                      Map<String, Object> metadataFilteringConditions) {
+        return difyApiClient.retrieve(datasetId, query, searchMethod, topK, scoreThreshold, apiKey,
+                metadataFilteringConditions);
     }
 
     /** Dify 问答（透传）。 */
@@ -95,11 +103,14 @@ public class RagService {
      * @param datasetId 知识库 ID
      * @param query     查询文本
      * @param topK      返回条数
+     * @param metadataFilteringConditions Dify 元数据过滤条件，可传 null
      */
-    public CompareResult compare(String datasetId, String query, int topK) {
+    public CompareResult compare(String datasetId, String query, int topK,
+                                 Map<String, Object> metadataFilteringConditions) {
         String collection = findCollection(datasetId);
         String apiKey = props.datasetApiKey();
-        List<RetrieveHit> difyHits = difyApiClient.retrieve(datasetId, query, "hybrid_search", topK, null, apiKey);
+        List<RetrieveHit> difyHits = difyApiClient.retrieve(datasetId, query, "hybrid_search", topK, null, apiKey,
+                metadataFilteringConditions);
 
         List<SelfHit> semantic = new ArrayList<>();
         List<SelfHit> fullText = new ArrayList<>();

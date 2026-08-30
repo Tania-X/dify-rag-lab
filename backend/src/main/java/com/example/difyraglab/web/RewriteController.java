@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -29,11 +30,12 @@ public class RewriteController {
 
     @PostMapping
     public Map<String, Object> rewrite(@RequestBody RewriteRequest req) {
-        String rewritten = queryRewriteService.rewrite(req.query());
+        QueryRewriteService.RewriteResult result = queryRewriteService.rewriteWithMetadata(req.query());
         return Map.of(
                 "original", req.query(),
-                "rewritten", rewritten,
-                "changed", !req.query().equals(rewritten)
+                "rewritten", result.query(),
+                "metadata_filters", result.metadataConditions() == null ? List.of() : result.metadataConditions(),
+                "changed", !req.query().equals(result.query())
         );
     }
 
