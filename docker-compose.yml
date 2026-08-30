@@ -31,11 +31,11 @@ services:
       WEAVIATE_API_KEY: ${WEAVIATE_API_KEY:-}
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
       REWRITE_ENABLED: ${REWRITE_ENABLED:-false}
-      REWRITE_BASE_URL: ${REWRITE_BASE_URL:-https://api.deepseek.com/v1}
+      REWRITE_BASE_URL: ${REWRITE_BASE_URL:-}
       REWRITE_API_KEY: ${REWRITE_API_KEY:-}
-      REWRITE_MODEL: ${REWRITE_MODEL:-deepseek-chat}
+      REWRITE_MODEL: ${REWRITE_MODEL:-}
     networks:
       - dify_default
     ports:

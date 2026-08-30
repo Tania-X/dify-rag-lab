@@ -65,7 +65,7 @@ echo "Dify 已就绪: http://localhost"
 if [ ! -f "$RAG_ENV_FILE" ]; then
   echo "==> 创建 dify-rag-lab .env 模板..."
   cp "$REPO_ROOT/.env.example" "$RAG_ENV_FILE"
-  echo "请编辑 $RAG_ENV_FILE 填入 DIFY_DATASET_ID / API Key 等配置后重新运行本脚本"
+  echo "请编辑 $RAG_ENV_FILE 填入 DIFY_DATASET_ID / API Key / EMBEDDING / REWRITE 等配置后重新运行本脚本"
   exit 0
 fi
 
