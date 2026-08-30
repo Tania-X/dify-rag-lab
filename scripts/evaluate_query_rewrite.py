@@ -11,7 +11,8 @@
     --base-url http://localhost \
     --dataset-id <dataset_id> \
     --api-key <dataset_api_key> \
-    --top-k 5
+    --candidate-top-k 20
+    --eval-top-k 5
 """
 from __future__ import annotations
 
@@ -29,7 +30,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--base-url", default="http://localhost", help="Dify base URL")
     parser.add_argument("--dataset-id", required=True, help="Dify dataset ID")
     parser.add_argument("--api-key", required=True, help="Dify dataset API key")
-    parser.add_argument("--top-k", type=int, default=5, help="top_k for retrieval")
+    parser.add_argument("--top-k", type=int, default=None, help="deprecated alias for candidate-top-k")
+    parser.add_argument("--candidate-top-k", type=int, default=20, help="how many candidates to request from Dify")
+    parser.add_argument("--eval-top-k", type=int, default=5, help="local top-k window for hit@k metric")
     parser.add_argument("--rerank", default="true", choices=["true", "false"], help="enable rerank")
     parser.add_argument("--rerank-provider", default="langgenius/siliconflow/siliconflow")
     parser.add_argument("--rerank-model", default="BAAI/bge-reranker-v2-m3")
@@ -40,7 +43,7 @@ def retrieve(base_url: str, dataset_id: str, api_key: str, query: str, args: arg
     retrieval_model: dict = {
         "search_method": "hybrid_search",
         "reranking_enable": args.rerank == "true",
-        "top_k": args.top_k,
+        "top_k": args.candidate_top_k,
         "score_threshold_enabled": False,
     }
     if args.rerank == "true":
@@ -73,7 +76,7 @@ def evaluate_query(base_url: str, dataset_id: str, api_key: str, query: str, key
     rank = first_hit_rank(records, keyword)
     return {
         "hit1": rank == 1,
-        "hitk": rank is not None and rank <= args.top_k,
+        "hitk": rank is not None and rank <= args.eval_top_k,
         "mrr": (1.0 / rank) if rank else 0.0,
         "rank": rank,
     }
@@ -81,6 +84,8 @@ def evaluate_query(base_url: str, dataset_id: str, api_key: str, query: str, key
 
 def main() -> None:
     args = parse_args()
+    if args.top_k is not None:
+        args.candidate_top_k = args.top_k
 
     with open(args.csv, encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
@@ -127,7 +132,7 @@ def main() -> None:
     print()
     print(f"total={n}")
     print(f"hit@1  original={hit1_orig}/{n}  rewritten={hit1_rew}/{n}")
-    print(f"hit@{args.top_k} original={hitk_orig}/{n}  rewritten={hitk_rew}/{n}")
+    print(f"hit@{args.eval_top_k} original={hitk_orig}/{n}  rewritten={hitk_rew}/{n}")
     print(f"MRR    original={mrr_orig:.4f}  rewritten={mrr_rew:.4f}")
     print(f"win={wins}  tie={ties}  loss={losses}")
 
