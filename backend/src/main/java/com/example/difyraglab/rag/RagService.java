@@ -1,19 +1,28 @@
 package com.example.difyraglab.rag;
 
 import com.example.difyraglab.config.DifyProperties;
+import com.example.difyraglab.config.RewriteProperties;
 import com.example.difyraglab.dify.DifyApiClient;
 import com.example.difyraglab.dify.dto.DifyRequests.RetrieveHit;
 import com.example.difyraglab.embedding.EmbeddingClient;
 import com.example.difyraglab.weaviate.WeaviateClient;
 import com.example.difyraglab.weaviate.WeaviateClient.SearchHit;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
+import org.springframework.web.client.RestClient;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * RAG 编排服务。
@@ -36,13 +45,20 @@ public class RagService {
     private final WeaviateClient weaviateClient;
     private final EmbeddingClient embeddingClient;
     private final DifyProperties props;
+    private final RestClient llmRestClient;
+    private final RewriteProperties rewriteProps;
+    private final ObjectMapper objectMapper;
 
     public RagService(DifyApiClient difyApiClient, WeaviateClient weaviateClient,
-                      EmbeddingClient embeddingClient, DifyProperties props) {
+                      EmbeddingClient embeddingClient, DifyProperties props,
+                      RestClient llmRestClient, RewriteProperties rewriteProps, ObjectMapper objectMapper) {
         this.difyApiClient = difyApiClient;
         this.weaviateClient = weaviateClient;
         this.embeddingClient = embeddingClient;
         this.props = props;
+        this.llmRestClient = llmRestClient;
+        this.rewriteProps = rewriteProps;
+        this.objectMapper = objectMapper;
     }
 
     /** 自实现检索的命中项。 */
@@ -93,8 +109,20 @@ public class RagService {
     }
 
     /** Dify 问答（透传）。 */
-    public com.fasterxml.jackson.databind.JsonNode chat(String query, String appKey, String conversationId) {
-        return difyApiClient.chat(query, appKey, conversationId);
+    public JsonNode chat(String query, String appKey, String conversationId) {
+        return chat(query, appKey, conversationId, null);
+    }
+
+    /**
+     * 问答。无元数据过滤时走 Dify App；有过滤时先用 Dify 检索出符合过滤条件的上下文，
+     * 再调用 LLM 生成回答，保证前端筛选条件真正生效。
+     */
+    public JsonNode chat(String query, String appKey, String conversationId,
+                         Map<String, Object> metadataFilteringConditions) {
+        if (metadataFilteringConditions == null || metadataFilteringConditions.isEmpty()) {
+            return difyApiClient.chat(query, appKey, conversationId);
+        }
+        return chatWithRetrievedContext(query, appKey, conversationId, metadataFilteringConditions);
     }
 
     /**
@@ -140,6 +168,72 @@ public class RagService {
             log.warn(note);
         }
         return new CompareResult(collection, dim, difyHits, semantic, fullText, hybrid, note);
+    }
+
+    // ------------------------------------------------------------------
+    // 问答辅助
+    // ------------------------------------------------------------------
+
+    private JsonNode chatWithRetrievedContext(String query, String appKey, String conversationId,
+                                              Map<String, Object> metadataFilteringConditions) {
+        List<RetrieveHit> hits = difyApiClient.retrieve(
+                props.datasetId(), query, "hybrid_search", 5, null,
+                props.datasetApiKey(), metadataFilteringConditions);
+
+        if (hits.isEmpty()) {
+            log.info("metadata-filtered chat got no retrieval hits, fallback to Dify app");
+            return difyApiClient.chat(query, appKey, conversationId);
+        }
+
+        String context = hits.stream()
+                .map(h -> "【文档：" + h.documentName() + "】\n" + h.content())
+                .collect(Collectors.joining("\n\n"));
+
+        String answer = callLlm(query, context);
+
+        ObjectNode resp = objectMapper.createObjectNode();
+        resp.put("answer", answer);
+        resp.put("conversation_id", conversationId == null ? "" : conversationId);
+        resp.put("message_id", UUID.randomUUID().toString());
+
+        ArrayNode records = resp.putArray("records");
+        for (RetrieveHit h : hits) {
+            ObjectNode record = records.addObject();
+            record.put("score", h.score());
+            ObjectNode segment = record.putObject("segment");
+            segment.put("content", h.content());
+            segment.put("document_id", h.documentId());
+            ObjectNode document = segment.putObject("document");
+            document.put("name", h.documentName());
+        }
+        return resp;
+    }
+
+    private String callLlm(String query, String context) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", rewriteProps.model());
+        body.put("temperature", 0.2);
+        body.put("messages", List.of(
+                Map.of("role", "system", "content",
+                        "你是一个金融知识库问答助手。请只根据提供的资料回答，不要编造；如果资料不足，请明确说明。"),
+                Map.of("role", "user", "content", "资料：\n" + context + "\n\n问题：" + query)
+        ));
+
+        JsonNode resp = llmRestClient.post()
+                .uri("/chat/completions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(JsonNode.class);
+
+        if (resp == null) {
+            throw new IllegalStateException("LLM chat returned null response");
+        }
+        JsonNode content = resp.path("choices").path(0).path("message").path("content");
+        if (content.isMissingNode() || content.isNull()) {
+            throw new IllegalStateException("LLM chat response missing content");
+        }
+        return content.asText().trim();
     }
 
     // ------------------------------------------------------------------

@@ -45,7 +45,10 @@ public class AppBeansConfig {
 
     @Bean
     public RagService ragService(DifyApiClient difyApiClient, WeaviateClient weaviateClient,
-                                 EmbeddingClient embeddingClient, DifyProperties props) {
-        return new RagService(difyApiClient, weaviateClient, embeddingClient, props);
+                                 EmbeddingClient embeddingClient, DifyProperties props,
+                                 RestClient rewriteRestClient, RewriteProperties rewriteProps,
+                                 ObjectMapper objectMapper) {
+        return new RagService(difyApiClient, weaviateClient, embeddingClient, props,
+                rewriteRestClient, rewriteProps, objectMapper);
     }
 }
