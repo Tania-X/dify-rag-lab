@@ -1,0 +1,59 @@
+# Dify RAG Lab 前后端容器化
+#
+# 前置条件：
+#   1. 先启动 Dify compose（项目网络名固定为 docker_default）
+#   2. 在本文件同目录准备 .env，或通过 shell 环境变量注入以下配置
+#
+# 启动：
+#   docker compose up -d --build
+#
+# 访问：
+#   Frontend: http://localhost:8080
+#   Backend:  http://localhost:8081（仅调试，正常走前端 /api 代理）
+#
+# 网络：
+#   与 Dify 共享外部网络 docker_default，后端可直接使用服务名：
+#     DIFY_BASE_URL=http://nginx:80
+#     WEAVIATE_URL=http://weaviate:8080
+
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: dify-rag-lab-backend
+    restart: unless-stopped
+    environment:
+      DIFY_BASE_URL: ${DIFY_BASE_URL:-http://nginx:80}
+      DIFY_DATASET_API_KEY: ${DIFY_DATASET_API_KEY:-}
+      DIFY_APP_API_KEY: ${DIFY_APP_API_KEY:-}
+      DIFY_DATASET_ID: ${DIFY_DATASET_ID:-}
+      WEAVIATE_URL: ${WEAVIATE_URL:-http://weaviate:8080}
+      WEAVIATE_API_KEY: ${WEAVIATE_API_KEY:-}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      REWRITE_ENABLED: ${REWRITE_ENABLED:-false}
+      REWRITE_BASE_URL: ${REWRITE_BASE_URL:-https://api.deepseek.com/v1}
+      REWRITE_API_KEY: ${REWRITE_API_KEY:-}
+      REWRITE_MODEL: ${REWRITE_MODEL:-deepseek-chat}
+    networks:
+      - dify_default
+    ports:
+      - "8081:8081"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: dify-rag-lab-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - dify_default
+    ports:
+      - "8080:80"
+
+networks:
+  dify_default:
+    external: true
+    name: docker_default
