@@ -212,9 +212,8 @@ public class QueryRewriteService {
                     if (valueNode != null && !valueNode.isNull()) {
                         if (valueNode.isNumber()) {
                             value = valueNode.numberValue();
-                        } else if (valueNode.isBoolean()) {
-                            value = valueNode.asBoolean();
                         } else {
+                            // Dify 元数据字段类型为 string/number/time，布尔值统一转成字符串
                             value = valueNode.asText();
                         }
                     }
