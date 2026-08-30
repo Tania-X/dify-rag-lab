@@ -181,8 +181,13 @@ public class RagService {
                 props.datasetApiKey(), metadataFilteringConditions);
 
         if (hits.isEmpty()) {
-            log.info("metadata-filtered chat got no retrieval hits, fallback to Dify app");
-            return difyApiClient.chat(query, appKey, conversationId);
+            log.info("metadata-filtered chat got no retrieval hits");
+            ObjectNode resp = objectMapper.createObjectNode();
+            resp.put("answer", "未检索到符合当前筛选条件的资料，请调整筛选条件后重试。");
+            resp.put("conversation_id", conversationId == null ? "" : conversationId);
+            resp.put("message_id", UUID.randomUUID().toString());
+            resp.putArray("records");
+            return resp;
         }
 
         String context = hits.stream()
