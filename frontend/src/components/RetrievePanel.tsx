@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { App as AntApp, Button, Card, Input, InputNumber, List, Select, Space, Tag, Typography } from 'antd';
-import { errorText, retrieve } from '../api/client';
-import type { RetrieveHit } from '../types';
+import { errorText, listMetadataFields, retrieve } from '../api/client';
+import type { MetadataField, RetrieveHit } from '../types';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -19,11 +19,28 @@ export default function RetrievePanel() {
   const [method, setMethod] = useState('hybrid_search');
   const [topK, setTopK] = useState(5);
   const [scoreThreshold, setScoreThreshold] = useState<number | null>(null);
+  const [metadataFields, setMetadataFields] = useState<MetadataField[]>([]);
+  const [metadataValues, setMetadataValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [hits, setHits] = useState<RetrieveHit[]>([]);
 
+  useEffect(() => {
+    listMetadataFields()
+      .then(setMetadataFields)
+      .catch(() => {
+        // 元数据字段拉取失败不阻塞检索，仅不显示筛选条件
+      });
+  }, []);
+
   const run = async () => {
     if (!query.trim()) return;
+    const metadataFilters = metadataFields
+      .filter((f) => metadataValues[f.name]?.trim())
+      .map((f) => ({
+        name: f.name,
+        operator: 'is',
+        value: metadataValues[f.name].trim(),
+      }));
     setLoading(true);
     try {
       setHits(
@@ -32,6 +49,7 @@ export default function RetrievePanel() {
           searchMethod: method,
           topK,
           scoreThreshold,
+          metadataFilters,
         }),
       );
     } catch (e) {
@@ -51,6 +69,22 @@ export default function RetrievePanel() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="输入查询文本"
           />
+          {metadataFields.length > 0 && (
+            <Space wrap>
+              {metadataFields.map((f) => (
+                <Input
+                  key={f.id}
+                  style={{ width: 180 }}
+                  addonBefore={f.name}
+                  placeholder={`${f.name} 过滤值，如 2025`}
+                  value={metadataValues[f.name] || ''}
+                  onChange={(e) =>
+                    setMetadataValues((prev) => ({ ...prev, [f.name]: e.target.value }))
+                  }
+                />
+              ))}
+            </Space>
+          )}
           <Space wrap>
             <Select
               style={{ width: 260 }}

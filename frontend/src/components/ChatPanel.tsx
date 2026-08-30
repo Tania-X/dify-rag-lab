@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { App as AntApp, Button, Card, Input, List, Space, Tag, Typography } from 'antd';
-import { chat, errorText } from '../api/client';
-import type { ChatResponse } from '../types';
+import { chat, errorText, listMetadataFields } from '../api/client';
+import type { ChatResponse, MetadataField } from '../types';
 
 const { TextArea } = Input;
 const { Paragraph, Text } = Typography;
@@ -12,11 +12,28 @@ export default function ChatPanel() {
   const [query, setQuery] = useState('支付网关调用超时应该怎么办');
   const [appKey, setAppKey] = useState('');
   const [conversationId, setConversationId] = useState('');
+  const [metadataFields, setMetadataFields] = useState<MetadataField[]>([]);
+  const [metadataValues, setMetadataValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [resp, setResp] = useState<ChatResponse | null>(null);
 
+  useEffect(() => {
+    listMetadataFields()
+      .then(setMetadataFields)
+      .catch(() => {
+        // 元数据字段拉取失败不阻塞问答，仅不显示筛选条件
+      });
+  }, []);
+
   const run = async () => {
     if (!query.trim()) return;
+    const metadataFilters = metadataFields
+      .filter((f) => metadataValues[f.name]?.trim())
+      .map((f) => ({
+        name: f.name,
+        operator: 'is',
+        value: metadataValues[f.name].trim(),
+      }));
     setLoading(true);
     try {
       setResp(
@@ -24,6 +41,7 @@ export default function ChatPanel() {
           query,
           appKey: appKey.trim() || undefined,
           conversationId: conversationId.trim() || undefined,
+          metadataFilters,
         }),
       );
     } catch (e) {
@@ -43,6 +61,22 @@ export default function ChatPanel() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="输入问题，如：支付网关调用超时应该怎么办"
           />
+          {metadataFields.length > 0 && (
+            <Space wrap>
+              {metadataFields.map((f) => (
+                <Input
+                  key={f.id}
+                  style={{ width: 180 }}
+                  addonBefore={f.name}
+                  placeholder={`${f.name} 过滤值，如 2025`}
+                  value={metadataValues[f.name] || ''}
+                  onChange={(e) =>
+                    setMetadataValues((prev) => ({ ...prev, [f.name]: e.target.value }))
+                  }
+                />
+              ))}
+            </Space>
+          )}
           <Space wrap>
             <Input
               style={{ width: 320 }}

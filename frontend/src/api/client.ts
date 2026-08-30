@@ -3,6 +3,7 @@ import type {
   ChatRequest,
   ChatResponse,
   CollectionInfo,
+  MetadataField,
   RetrieveHit,
   RetrieveRequest,
   SelfHit,
@@ -33,6 +34,11 @@ export async function retrieve(payload: RetrieveRequest): Promise<RetrieveHit[]>
 
 export async function chat(payload: ChatRequest): Promise<ChatResponse> {
   const { data } = await client.post<ChatResponse>('/rag/chat', payload);
+  return data;
+}
+
+export async function listMetadataFields(): Promise<MetadataField[]> {
+  const { data } = await client.get<MetadataField[]>('/rag/metadata');
   return data;
 }
 

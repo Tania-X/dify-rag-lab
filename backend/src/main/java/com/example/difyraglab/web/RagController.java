@@ -51,6 +51,22 @@ public class RagController {
     }
 
     // ------------------------------------------------------------------
+    // 元数据
+    // ------------------------------------------------------------------
+
+    public record MetadataField(String id, String name, String type, int count) {
+    }
+
+    public record MetadataFilterItem(String name, String operator, Object value) {
+    }
+
+    public record DocumentMetadataRequest(
+            @JsonAlias("document_id") @NotBlank String documentId,
+            Map<String, Object> metadata
+    ) {
+    }
+
+    // ------------------------------------------------------------------
     // 检索
     // ------------------------------------------------------------------
 
@@ -60,7 +76,8 @@ public class RagController {
             @JsonAlias("top_k") Integer topK,
             @JsonAlias("score_threshold") Double scoreThreshold,
             @JsonAlias("dataset_id") String datasetId,
-            @JsonAlias("api_key") String apiKey
+            @JsonAlias("api_key") String apiKey,
+            @JsonAlias("metadata_filters") List<MetadataFilterItem> metadataFilters
     ) {
     }
 
@@ -71,8 +88,10 @@ public class RagController {
         String datasetId = req.datasetId() == null ? props.datasetId() : req.datasetId();
         String apiKey = req.apiKey() == null ? props.datasetApiKey() : req.apiKey();
         QueryRewriteService.RewriteResult rewrite = queryRewriteService.rewriteWithMetadata(req.query());
+        List<MetadataFilterItem> filters = combineMetadataFilters(
+                rewrite.metadataConditions(), req.metadataFilters());
         return ragService.retrieve(datasetId, rewrite.query(), method, topK, req.scoreThreshold(), apiKey,
-                toMetadataFilteringConditions(rewrite.metadataConditions()));
+                toMetadataFilteringConditions(filters));
     }
 
     // ------------------------------------------------------------------
@@ -82,15 +101,54 @@ public class RagController {
     public record ChatRequest(
             @NotBlank String query,
             @JsonAlias("app_key") String appKey,
-            @JsonAlias("conversation_id") String conversationId
+            @JsonAlias("conversation_id") String conversationId,
+            @JsonAlias("metadata_filters") List<MetadataFilterItem> metadataFilters
     ) {
     }
 
     @PostMapping("/chat")
     public JsonNode chat(@Valid @RequestBody ChatRequest req) {
         String appKey = req.appKey() == null ? props.appApiKey() : req.appKey();
-        String finalQuery = queryRewriteService.rewrite(req.query());
-        return ragService.chat(finalQuery, appKey, req.conversationId());
+        QueryRewriteService.RewriteResult rewrite = queryRewriteService.rewriteWithMetadata(req.query());
+        List<MetadataFilterItem> filters = combineMetadataFilters(
+                rewrite.metadataConditions(), req.metadataFilters());
+        return ragService.chat(rewrite.query(), appKey, req.conversationId(),
+                toMetadataFilteringConditions(filters));
+    }
+
+    // ------------------------------------------------------------------
+    // 元数据管理
+    // ------------------------------------------------------------------
+
+    @GetMapping("/metadata")
+    public List<MetadataField> metadata() {
+        String dsId = props.datasetId();
+        String key = props.datasetApiKey();
+        JsonNode resp = difyApiClient.listMetadataFields(dsId, key);
+        List<MetadataField> fields = new ArrayList<>();
+        JsonNode docMetadata = resp.path("doc_metadata");
+        if (docMetadata.isArray()) {
+            for (JsonNode field : docMetadata) {
+                fields.add(new MetadataField(
+                        field.path("id").asText(),
+                        field.path("name").asText(),
+                        field.path("type").asText(),
+                        field.path("count").asInt(0)));
+            }
+        }
+        return fields;
+    }
+
+    @PostMapping("/documents/metadata")
+    public Map<String, Object> updateDocumentMetadata(@Valid @RequestBody DocumentMetadataRequest req) throws Exception {
+        String dsId = props.datasetId();
+        String key = props.datasetApiKey();
+        JsonNode metadata = objectMapper.valueToTree(req.metadata());
+        applyDocumentMetadata(dsId, req.documentId(), key, metadata);
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("document_id", req.documentId());
+        resp.put("metadata", req.metadata());
+        return resp;
     }
 
     // ------------------------------------------------------------------
@@ -164,27 +222,49 @@ public class RagController {
             return ResponseEntity.badRequest().build();
         }
         QueryRewriteService.RewriteResult rewrite = queryRewriteService.rewriteWithMetadata(query);
+        List<MetadataFilterItem> filters = combineMetadataFilters(rewrite.metadataConditions(), null);
         return ResponseEntity.ok(ragService.compare(dsId, rewrite.query(), topK,
-                toMetadataFilteringConditions(rewrite.metadataConditions())));
+                toMetadataFilteringConditions(filters)));
     }
 
     // ------------------------------------------------------------------
     // 内部辅助
     // ------------------------------------------------------------------
 
-    /** 把 QueryRewriteService 提取的条件转成 Dify retrieval_model.metadata_filtering_conditions。 */
-    private Map<String, Object> toMetadataFilteringConditions(
-            List<QueryRewriteService.MetadataCondition> conditions) {
+    /** 合并 QueryRewrite 自动提取的条件和前端显式选择的过滤条件（AND 关系）。 */
+    private List<MetadataFilterItem> combineMetadataFilters(
+            List<QueryRewriteService.MetadataCondition> rewriteConditions,
+            List<MetadataFilterItem> requestConditions) {
+        List<MetadataFilterItem> filters = new ArrayList<>();
+        if (rewriteConditions != null) {
+            for (QueryRewriteService.MetadataCondition c : rewriteConditions) {
+                filters.add(new MetadataFilterItem(c.name(), c.operator(), c.value()));
+            }
+        }
+        if (requestConditions != null) {
+            filters.addAll(requestConditions);
+        }
+        return filters;
+    }
+
+    /** 把过滤条件转成 Dify retrieval_model.metadata_filtering_conditions。 */
+    private Map<String, Object> toMetadataFilteringConditions(List<MetadataFilterItem> conditions) {
         if (conditions == null || conditions.isEmpty()) {
             return null;
         }
         List<Map<String, Object>> conditionList = new ArrayList<>();
-        for (QueryRewriteService.MetadataCondition c : conditions) {
+        for (MetadataFilterItem c : conditions) {
+            if (c.name() == null || c.name().isBlank() || c.operator() == null || c.operator().isBlank()) {
+                continue;
+            }
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("name", c.name());
             item.put("comparison_operator", c.operator());
             item.put("value", c.value());
             conditionList.add(item);
+        }
+        if (conditionList.isEmpty()) {
+            return null;
         }
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("logical_operator", "and");

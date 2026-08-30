@@ -9,6 +9,21 @@ export interface RetrieveHit {
   score: number;
 }
 
+/** 知识库元数据字段 */
+export interface MetadataField {
+  id: string;
+  name: string;
+  type: string;
+  count: number;
+}
+
+/** 元数据过滤条件，与后端 MetadataFilterItem 对齐 */
+export interface MetadataFilterItem {
+  name: string;
+  operator: string;
+  value: unknown;
+}
+
 export interface RetrieveRequest {
   query: string;
   searchMethod?: string; // semantic_search | full_text_search | hybrid_search
@@ -16,12 +31,14 @@ export interface RetrieveRequest {
   scoreThreshold?: number | null;
   datasetId?: string;
   apiKey?: string;
+  metadataFilters?: MetadataFilterItem[];
 }
 
 export interface ChatRequest {
   query: string;
   appKey?: string;
   conversationId?: string;
+  metadataFilters?: MetadataFilterItem[];
 }
 
 /** Dify chat-messages 响应（blocking），records 为知识库引用（存在时） */
