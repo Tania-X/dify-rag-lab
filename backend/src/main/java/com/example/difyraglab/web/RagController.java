@@ -238,9 +238,8 @@ public class RagController {
             item.put("name", name);
             if (valueNode != null && valueNode.isNumber()) {
                 item.put("value", valueNode.numberValue());
-            } else if (valueNode != null && valueNode.isBoolean()) {
-                item.put("value", valueNode.asBoolean());
             } else if (valueNode != null && !valueNode.isNull()) {
+                // Dify 元数据字段类型仅支持 string/number/time，布尔值统一存成字符串
                 item.put("value", valueNode.asText());
             } else {
                 item.put("value", null);
