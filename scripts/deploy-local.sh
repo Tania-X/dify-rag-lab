@@ -78,7 +78,7 @@ echo "==> 构建并启动 dify-rag-lab 前后端..."
 echo "==> 等待后端就绪..."
 backend_ready=0
 for i in $(seq 1 "$WAIT_TIMEOUT"); do
-  if curl -fsS --max-time 3 "http://localhost:8081/api/rag/rewrite/metrics" >/dev/null 2>&1; then
+  if curl -fsS --max-time 3 "http://localhost:8081/api/vdb/collections" >/dev/null 2>&1; then
     backend_ready=1
     break
   fi
