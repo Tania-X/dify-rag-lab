@@ -1,4 +1,9 @@
-# Skill: AI Review 协作循环
+---
+name: ai-review-loop
+description: Use when pushing a feature branch, creating a PR, monitoring AI Review, or deciding whether to auto-fix review findings. Follows the collaboration rule: severity >= 4 auto-fix and re-monitor; severity < 4 stop, analyze, and let the human decide.
+---
+
+# AI Review 协作循环
 
 > 适用场景：每次功能分支 push 后，由 AI Review 自动审查 PR。
 > 目标：严重问题自动修复，轻微问题不擅自改，交由人来决策。
