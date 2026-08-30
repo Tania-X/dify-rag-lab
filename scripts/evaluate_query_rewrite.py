@@ -36,6 +36,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rerank", default="true", choices=["true", "false"], help="enable rerank")
     parser.add_argument("--rerank-provider", default="langgenius/siliconflow/siliconflow")
     parser.add_argument("--rerank-model", default="BAAI/bge-reranker-v2-m3")
+    parser.add_argument("--metadata-name", default="", help="metadata field to filter, e.g. year")
+    parser.add_argument("--metadata-value", default="", help="metadata value to filter, e.g. 2025")
+    parser.add_argument("--metadata-operator", default="is", help="comparison operator, default is")
     return parser.parse_args()
 
 
@@ -52,6 +55,18 @@ def retrieve(base_url: str, dataset_id: str, api_key: str, query: str, args: arg
             "reranking_model_name": args.rerank_model,
         }
         retrieval_model["reranking_mode"] = "reranking_model"
+
+    if args.metadata_name and args.metadata_value:
+        retrieval_model["metadata_filtering_conditions"] = {
+            "logical_operator": "and",
+            "conditions": [
+                {
+                    "name": args.metadata_name,
+                    "comparison_operator": args.metadata_operator,
+                    "value": args.metadata_value,
+                }
+            ],
+        }
 
     body = json.dumps({"query": query, "retrieval_model": retrieval_model}, ensure_ascii=False).encode("utf-8")
     url = f"{args.base_url.rstrip('/')}/v1/datasets/{dataset_id}/retrieve"
@@ -103,8 +118,12 @@ def main() -> None:
 
     results = []
     for row in rows:
+        old_name, old_value = args.metadata_name, args.metadata_value
+        args.metadata_name = row.get("metadata_name") or args.metadata_name
+        args.metadata_value = row.get("metadata_value") or args.metadata_value
         orig = evaluate_query(args.base_url, args.dataset_id, args.api_key, row["original_query"], row["expected_keyword"], args)
         rew = evaluate_query(args.base_url, args.dataset_id, args.api_key, row["rewritten_query"], row["expected_keyword"], args)
+        args.metadata_name, args.metadata_value = old_name, old_value
         if orig["hit1"] == rew["hit1"]:
             verdict = "tie"
         elif rew["hit1"]:
