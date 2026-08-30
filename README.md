@@ -73,7 +73,43 @@ flowchart LR
 - 已在 Dify 创建知识库并生成**数据集 API Key**（知识库 → 设置 → API 访问）；
 - 可选：聊天助手 App 及其 API Key（问答功能）。
 
-### 1. 启动后端网关
+### 0. Docker Compose（推荐）
+
+如果 Dify 已经通过 Docker 启动，并且网络名是 `docker_default`，可以用本项目自带的 Compose 编排同时启动前后端：
+
+```bash
+cd /Users/apple/dsh/dify-rag-lab
+
+# 1. 准备环境变量
+cp .env.example .env
+# 编辑 .env，填入 DIFY_DATASET_ID / DIFY_DATASET_API_KEY / DIFY_APP_API_KEY 等
+
+# 2. 一键构建并启动（推荐，自动读取 .env，避免 shell 旧变量覆盖）
+./scripts/docker-up.sh --build
+
+# 或者手动执行：
+docker compose build backend frontend
+docker compose up -d
+```
+
+> 注意：`docker compose` 会优先使用当前 shell 中已 export 的同名变量。
+> 如果你之前 export 过 `DIFY_BASE_URL=http://localhost` 等旧值，可能覆盖 `.env` 导致容器内无法连接 Dify。
+> 建议统一使用 `./scripts/docker-up.sh`，它会在启动前把 `.env` 变量重新导入当前环境。
+
+验证：
+
+```bash
+docker compose ps
+curl http://localhost:8081/api/rag/metadata
+```
+
+前端访问：
+
+```text
+http://localhost:8080
+```
+
+### 1. 启动后端网关（本地开发）
 
 ```bash
 cd backend
