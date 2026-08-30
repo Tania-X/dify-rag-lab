@@ -78,7 +78,7 @@ flowchart LR
 如果 Dify 已经通过 Docker 启动，并且网络名是 `docker_default`，可以用本项目自带的 Compose 编排同时启动前后端：
 
 ```bash
-cd /Users/apple/dsh/dify-rag-lab
+cd path/to/dify-rag-lab
 
 # 1. 准备环境变量
 cp .env.example .env
