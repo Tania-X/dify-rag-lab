@@ -31,11 +31,13 @@ public class RewriteController {
     @PostMapping
     public Map<String, Object> rewrite(@RequestBody RewriteRequest req) {
         QueryRewriteService.RewriteResult result = queryRewriteService.rewriteWithMetadata(req.query());
+        boolean changed = !req.query().equals(result.query())
+                || (result.metadataConditions() != null && !result.metadataConditions().isEmpty());
         return Map.of(
                 "original", req.query(),
                 "rewritten", result.query(),
                 "metadata_filters", result.metadataConditions() == null ? List.of() : result.metadataConditions(),
-                "changed", !req.query().equals(result.query())
+                "changed", changed
         );
     }
 
