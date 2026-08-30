@@ -9,6 +9,7 @@ import com.example.difyraglab.rag.RagService.CompareResult;
 import com.example.difyraglab.rewrite.QueryRewriteService;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,13 +39,15 @@ public class RagController {
     private final DifyApiClient difyApiClient;
     private final DifyProperties props;
     private final QueryRewriteService queryRewriteService;
+    private final ObjectMapper objectMapper;
 
     public RagController(RagService ragService, DifyApiClient difyApiClient, DifyProperties props,
-                         QueryRewriteService queryRewriteService) {
+                         QueryRewriteService queryRewriteService, ObjectMapper objectMapper) {
         this.ragService = ragService;
         this.difyApiClient = difyApiClient;
         this.props = props;
         this.queryRewriteService = queryRewriteService;
+        this.objectMapper = objectMapper;
     }
 
     // ------------------------------------------------------------------
@@ -66,8 +70,9 @@ public class RagController {
         int topK = req.topK() == null ? 5 : req.topK();
         String datasetId = req.datasetId() == null ? props.datasetId() : req.datasetId();
         String apiKey = req.apiKey() == null ? props.datasetApiKey() : req.apiKey();
-        String finalQuery = queryRewriteService.rewrite(req.query());
-        return ragService.retrieve(datasetId, finalQuery, method, topK, req.scoreThreshold(), apiKey);
+        QueryRewriteService.RewriteResult rewrite = queryRewriteService.rewriteWithMetadata(req.query());
+        return ragService.retrieve(datasetId, rewrite.query(), method, topK, req.scoreThreshold(), apiKey,
+                toMetadataFilteringConditions(rewrite.metadataConditions()));
     }
 
     // ------------------------------------------------------------------
@@ -98,7 +103,8 @@ public class RagController {
             @RequestParam(value = "dataset_id", required = false) String datasetId,
             @RequestParam(value = "doc_form", required = false) String docForm,
             @RequestParam(value = "api_key", required = false) String apiKey,
-            @RequestParam(value = "wait", defaultValue = "true") boolean wait) throws Exception {
+            @RequestParam(value = "wait", defaultValue = "true") boolean wait,
+            @RequestParam(value = "metadata", required = false) String metadataJson) throws Exception {
 
         String dsId = datasetId == null ? props.datasetId() : datasetId;
         String key = apiKey == null ? props.datasetApiKey() : apiKey;
@@ -131,6 +137,16 @@ public class RagController {
             resp.put("indexing_status", status.path("indexing_status").asText());
             resp.put("indexing_status_detail", status);
         }
+
+        if (metadataJson != null && !metadataJson.isBlank()) {
+            JsonNode metadata = objectMapper.readTree(metadataJson);
+            if (!metadata.isObject()) {
+                throw new IllegalArgumentException("metadata must be a JSON object");
+            }
+            applyDocumentMetadata(dsId, result.documentId(), key, metadata);
+            resp.put("metadata", metadata);
+        }
+
         return resp;
     }
 
@@ -147,7 +163,96 @@ public class RagController {
         if (dsId == null || dsId.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
-        String finalQuery = queryRewriteService.rewrite(query);
-        return ResponseEntity.ok(ragService.compare(dsId, finalQuery, topK));
+        QueryRewriteService.RewriteResult rewrite = queryRewriteService.rewriteWithMetadata(query);
+        return ResponseEntity.ok(ragService.compare(dsId, rewrite.query(), topK,
+                toMetadataFilteringConditions(rewrite.metadataConditions())));
+    }
+
+    // ------------------------------------------------------------------
+    // 内部辅助
+    // ------------------------------------------------------------------
+
+    /** 把 QueryRewriteService 提取的条件转成 Dify retrieval_model.metadata_filtering_conditions。 */
+    private Map<String, Object> toMetadataFilteringConditions(
+            List<QueryRewriteService.MetadataCondition> conditions) {
+        if (conditions == null || conditions.isEmpty()) {
+            return null;
+        }
+        List<Map<String, Object>> conditionList = new ArrayList<>();
+        for (QueryRewriteService.MetadataCondition c : conditions) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("name", c.name());
+            item.put("comparison_operator", c.operator());
+            item.put("value", c.value());
+            conditionList.add(item);
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("logical_operator", "and");
+        body.put("conditions", conditionList);
+        return body;
+    }
+
+    /** 文档入库后，把 metadata JSON 对象写入 Dify 文档元数据。 */
+    private void applyDocumentMetadata(String datasetId, String documentId, String apiKey,
+                                       JsonNode metadata) throws Exception {
+        Map<String, String> fieldIds = new LinkedHashMap<>();
+        JsonNode fieldsResp = difyApiClient.listMetadataFields(datasetId, apiKey);
+        JsonNode docMetadata = fieldsResp.path("doc_metadata");
+        if (docMetadata.isArray()) {
+            for (JsonNode field : docMetadata) {
+                String id = field.path("id").asText("");
+                String name = field.path("name").asText("");
+                if (!id.isBlank() && !name.isBlank()) {
+                    fieldIds.put(name, id);
+                }
+            }
+        }
+
+        List<Map<String, Object>> metadataList = new ArrayList<>();
+        var names = metadata.fieldNames();
+        while (names.hasNext()) {
+            String name = names.next();
+            JsonNode valueNode = metadata.get(name);
+            String id = fieldIds.get(name);
+            if (id == null) {
+                String type = valueNode.isNumber() ? "number" : "string";
+                JsonNode created = difyApiClient.createMetadataField(datasetId, apiKey, name, type);
+                id = created.path("id").asText("");
+                if (id.isBlank()) {
+                    // 部分 Dify 响应直接返回 id，而不是嵌套；再尝试从 doc_metadata 列表刷新
+                    JsonNode refreshed = difyApiClient.listMetadataFields(datasetId, apiKey);
+                    for (JsonNode field : refreshed.path("doc_metadata")) {
+                        if (name.equals(field.path("name").asText(""))) {
+                            id = field.path("id").asText("");
+                            break;
+                        }
+                    }
+                }
+                if (id.isBlank()) {
+                    throw new IllegalStateException("Failed to create metadata field: " + name);
+                }
+                fieldIds.put(name, id);
+            }
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", id);
+            item.put("name", name);
+            if (valueNode != null && valueNode.isNumber()) {
+                item.put("value", valueNode.numberValue());
+            } else if (valueNode != null && !valueNode.isNull()) {
+                // Dify 元数据字段类型仅支持 string/number/time，布尔值统一存成字符串
+                item.put("value", valueNode.asText());
+            } else {
+                item.put("value", null);
+            }
+            metadataList.add(item);
+        }
+
+        Map<String, Object> operation = new LinkedHashMap<>();
+        operation.put("document_id", documentId);
+        operation.put("metadata_list", metadataList);
+        operation.put("partial_update", true);
+        List<Map<String, Object>> operationData = new ArrayList<>();
+        operationData.add(operation);
+        difyApiClient.updateDocumentsMetadata(datasetId, apiKey, operationData);
     }
 }

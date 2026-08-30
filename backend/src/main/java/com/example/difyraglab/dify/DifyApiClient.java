@@ -162,6 +162,18 @@ public class DifyApiClient {
      */
     public List<RetrieveHit> retrieve(String datasetId, String query, String searchMethod,
                                       int topK, Double scoreThreshold, String apiKey) {
+        return retrieve(datasetId, query, searchMethod, topK, scoreThreshold, apiKey, null);
+    }
+
+    /**
+     * 检索知识库分段（POST /datasets/{id}/retrieve），支持元数据过滤。
+     *
+     * @param metadataFilteringConditions Dify retrieval_model.metadata_filtering_conditions，
+     *                                    可传 null 表示不过滤。
+     */
+    public List<RetrieveHit> retrieve(String datasetId, String query, String searchMethod,
+                                      int topK, Double scoreThreshold, String apiKey,
+                                      Map<String, Object> metadataFilteringConditions) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalArgumentException(
                     "未配置数据集 API Key（环境变量 DIFY_DATASET_API_KEY，或请求体 api_key）。"
@@ -176,6 +188,9 @@ public class DifyApiClient {
             retrievalModel.put("score_threshold", scoreThreshold);
         } else {
             retrievalModel.put("score_threshold_enabled", false);
+        }
+        if (metadataFilteringConditions != null && !metadataFilteringConditions.isEmpty()) {
+            retrievalModel.put("metadata_filtering_conditions", metadataFilteringConditions);
         }
 
         Map<String, Object> body = new LinkedHashMap<>();
@@ -203,6 +218,51 @@ public class DifyApiClient {
             }
         }
         return hits;
+    }
+
+    // ------------------------------------------------------------------
+    // 3b. 元数据（自定义字段 + 文档打标）
+    // ------------------------------------------------------------------
+
+    /** 获取知识库已定义的元数据字段。响应中的 doc_metadata 数组元素含 id/name/type/count。 */
+    public JsonNode listMetadataFields(String datasetId, String apiKey) {
+        return restClient.get()
+                .uri("/v1/datasets/{dataset_id}/metadata", datasetId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                .retrieve()
+                .body(JsonNode.class);
+    }
+
+    /** 创建自定义元数据字段。type 支持 string / number / time。 */
+    public JsonNode createMetadataField(String datasetId, String apiKey, String name, String type) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("name", name);
+        body.put("type", type);
+        return restClient.post()
+                .uri("/v1/datasets/{dataset_id}/metadata", datasetId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(JsonNode.class);
+    }
+
+    /**
+     * 批量给文档设置元数据。
+     *
+     * @param operationData Dify MetadataOperationData 中的 operation_data 数组
+     */
+    public JsonNode updateDocumentsMetadata(String datasetId, String apiKey,
+                                            List<Map<String, Object>> operationData) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("operation_data", operationData);
+        return restClient.post()
+                .uri("/v1/datasets/{dataset_id}/documents/metadata", datasetId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(JsonNode.class);
     }
 
     // ------------------------------------------------------------------

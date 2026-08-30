@@ -33,7 +33,7 @@ rewrite:
   model: ${REWRITE_MODEL:deepseek-ai/DeepSeek-V3}
   temperature: ${REWRITE_TEMPERATURE:0}
   timeout-seconds: ${REWRITE_TIMEOUT_SECONDS:10}
-  prompt-version: ${REWRITE_PROMPT_VERSION:v1}
+  prompt-version: ${REWRITE_PROMPT_VERSION:v2}
   cache-ttl-seconds: ${REWRITE_CACHE_TTL_SECONDS:3600}
 
 logging:

@@ -81,7 +81,15 @@ public class RagService {
     /** Dify 检索（透传）。 */
     public List<RetrieveHit> retrieve(String datasetId, String query, String searchMethod,
                                       int topK, Double scoreThreshold, String apiKey) {
-        return difyApiClient.retrieve(datasetId, query, searchMethod, topK, scoreThreshold, apiKey);
+        return retrieve(datasetId, query, searchMethod, topK, scoreThreshold, apiKey, null);
+    }
+
+    /** Dify 检索（透传），支持元数据过滤条件。 */
+    public List<RetrieveHit> retrieve(String datasetId, String query, String searchMethod,
+                                      int topK, Double scoreThreshold, String apiKey,
+                                      Map<String, Object> metadataFilteringConditions) {
+        return difyApiClient.retrieve(datasetId, query, searchMethod, topK, scoreThreshold, apiKey,
+                metadataFilteringConditions);
     }
 
     /** Dify 问答（透传）。 */
@@ -95,11 +103,14 @@ public class RagService {
      * @param datasetId 知识库 ID
      * @param query     查询文本
      * @param topK      返回条数
+     * @param metadataFilteringConditions Dify 元数据过滤条件，可传 null
      */
-    public CompareResult compare(String datasetId, String query, int topK) {
+    public CompareResult compare(String datasetId, String query, int topK,
+                                 Map<String, Object> metadataFilteringConditions) {
         String collection = findCollection(datasetId);
         String apiKey = props.datasetApiKey();
-        List<RetrieveHit> difyHits = difyApiClient.retrieve(datasetId, query, "hybrid_search", topK, null, apiKey);
+        List<RetrieveHit> difyHits = difyApiClient.retrieve(datasetId, query, "hybrid_search", topK, null, apiKey,
+                metadataFilteringConditions);
 
         List<SelfHit> semantic = new ArrayList<>();
         List<SelfHit> fullText = new ArrayList<>();
@@ -117,9 +128,13 @@ public class RagService {
                     weaviateClient.nearVectorSearch(collection, vector, topK * 2, null),
                     weaviateClient.bm25Search(collection, query, topK * 2),
                     0.7, topK);
+            String metadataNote = (metadataFilteringConditions == null || metadataFilteringConditions.isEmpty())
+                    ? ""
+                    : "本次 Dify 侧已应用元数据过滤，自实现检索未应用相同过滤，对比结果包含过滤因素差异。";
             note = "自实现检索使用与 Dify 相同的 Embedding 模型（" + props.embedding().model() + "），"
                     + "score 口径：vector = 1 - cosine_distance；hybrid = 0.7×norm(vector) + 0.3×norm(bm25)。"
-                    + "两套结果差异主要来自 Dify 的预处理/参数（如 rerank、元数据过滤）。";
+                    + "两套结果差异主要来自 Dify 的预处理/参数（如 rerank、元数据过滤）。"
+                    + metadataNote;
         } catch (IllegalStateException e) {
             note = "未配置 Embedding 端点（EMBEDDING_BASE_URL），仅展示 Dify 检索结果。";
             log.warn(note);
