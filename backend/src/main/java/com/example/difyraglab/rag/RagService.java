@@ -128,9 +128,13 @@ public class RagService {
                     weaviateClient.nearVectorSearch(collection, vector, topK * 2, null),
                     weaviateClient.bm25Search(collection, query, topK * 2),
                     0.7, topK);
+            String metadataNote = (metadataFilteringConditions == null || metadataFilteringConditions.isEmpty())
+                    ? ""
+                    : "本次 Dify 侧已应用元数据过滤，自实现检索未应用相同过滤，对比结果包含过滤因素差异。";
             note = "自实现检索使用与 Dify 相同的 Embedding 模型（" + props.embedding().model() + "），"
                     + "score 口径：vector = 1 - cosine_distance；hybrid = 0.7×norm(vector) + 0.3×norm(bm25)。"
-                    + "两套结果差异主要来自 Dify 的预处理/参数（如 rerank、元数据过滤）。";
+                    + "两套结果差异主要来自 Dify 的预处理/参数（如 rerank、元数据过滤）。"
+                    + metadataNote;
         } catch (IllegalStateException e) {
             note = "未配置 Embedding 端点（EMBEDDING_BASE_URL），仅展示 Dify 检索结果。";
             log.warn(note);
