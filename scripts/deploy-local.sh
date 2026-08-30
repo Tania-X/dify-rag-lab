@@ -25,6 +25,7 @@ DIFY_ENV_FILE="${DIFY_ENV_FILE:-$DIFY_HOME/docker/.env}"
 RAG_COMPOSE="${RAG_COMPOSE:-$REPO_ROOT/docker-compose.yml}"
 RAG_ENV_FILE="${RAG_ENV_FILE:-$REPO_ROOT/.env}"
 WAIT_TIMEOUT="${WAIT_TIMEOUT:-120}"
+DIFY_HEALTH_URL="${DIFY_HEALTH_URL:-http://localhost/console/api/setup}"
 
 echo "==> 检查 Docker 环境..."
 docker info >/dev/null 2>&1 || { echo "Docker daemon 未运行，请先启动 Docker/Colima" >&2; exit 1; }
@@ -50,7 +51,7 @@ echo "==> 启动 Dify..."
 echo "==> 等待 Dify 就绪..."
 ready=0
 for i in $(seq 1 "$WAIT_TIMEOUT"); do
-  if curl -fsS --max-time 3 "http://localhost/console/api/setup" >/dev/null 2>&1; then
+  if curl -fsS --max-time 3 "$DIFY_HEALTH_URL" >/dev/null 2>&1; then
     ready=1
     break
   fi
@@ -78,7 +79,7 @@ echo "==> 构建并启动 dify-rag-lab 前后端..."
 echo "==> 等待后端就绪..."
 backend_ready=0
 for i in $(seq 1 "$WAIT_TIMEOUT"); do
-  if curl -fsS --max-time 3 "http://localhost:8081/api/vdb/collections" >/dev/null 2>&1; then
+  if curl -fsS --max-time 3 "http://localhost:8081/api/ping" >/dev/null 2>&1; then
     backend_ready=1
     break
   fi
