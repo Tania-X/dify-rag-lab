@@ -24,6 +24,18 @@ weaviate:
   # API Key 从环境变量注入，禁止硬编码默认值
   api-key: ${WEAVIATE_API_KEY:}
 
+rewrite:
+  # 默认关闭；开启后所有 /api/rag/retrieve、/api/rag/chat、/api/rag/compare 会先做查询改写
+  enabled: ${REWRITE_ENABLED:false}
+  # OpenAI 兼容 Chat Completions 端点（SiliconFlow / DeepSeek 均可）
+  base-url: ${REWRITE_BASE_URL:https://api.siliconflow.cn/v1}
+  api-key: ${REWRITE_API_KEY:}
+  model: ${REWRITE_MODEL:deepseek-ai/DeepSeek-V3}
+  temperature: ${REWRITE_TEMPERATURE:0}
+  timeout-seconds: ${REWRITE_TIMEOUT_SECONDS:10}
+  prompt-version: ${REWRITE_PROMPT_VERSION:v1}
+  cache-ttl-seconds: ${REWRITE_CACHE_TTL_SECONDS:3600}
+
 logging:
   level:
     com.example.difyraglab: INFO

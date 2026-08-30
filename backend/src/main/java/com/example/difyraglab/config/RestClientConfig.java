@@ -5,7 +5,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
+
+import java.time.Duration;
 
 /**
  * HTTP 客户端装配。
@@ -35,6 +38,19 @@ public class RestClientConfig {
         // X-API-Key 头会被当作匿名（403）。与 Dify 官方默认配置一致。
         return RestClient.builder()
                 .baseUrl(props.baseUrl())
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + props.apiKey())
+                .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                .build();
+    }
+
+    @Bean
+    public RestClient rewriteRestClient(RewriteProperties props) {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(props.timeoutSeconds()));
+        requestFactory.setReadTimeout(Duration.ofSeconds(props.timeoutSeconds()));
+        return RestClient.builder()
+                .baseUrl(props.baseUrl())
+                .requestFactory(requestFactory)
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + props.apiKey())
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                 .build();
