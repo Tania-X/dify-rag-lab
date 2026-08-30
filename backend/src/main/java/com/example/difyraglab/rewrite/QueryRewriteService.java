@@ -138,12 +138,12 @@ public class QueryRewriteService {
         try {
             String raw = callLlm(normalized);
             RewriteResult result = parseLlmOutput(raw, normalized);
-            if (result.query() == null || result.query().isBlank() || result.query().equals(normalized)) {
+            if (result.query() == null || result.query().isBlank()) {
+                result = new RewriteResult(normalized, List.of());
                 noopCount.incrementAndGet();
-                successCount.incrementAndGet();
-                RewriteResult noop = new RewriteResult(normalized, List.of());
-                cache.put(cacheKey, toCacheJson(noop), props.cacheTtlSeconds());
-                return noop;
+            } else if (result.query().equals(normalized)) {
+                // 查询文本没有变化，但仍可能提取了元数据过滤条件，不能丢弃。
+                noopCount.incrementAndGet();
             }
             successCount.incrementAndGet();
             cache.put(cacheKey, toCacheJson(result), props.cacheTtlSeconds());
